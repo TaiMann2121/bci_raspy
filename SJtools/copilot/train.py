@@ -266,7 +266,7 @@ data2log = {}
 finalLog = "" # for run.py
 if not args.save: models_text.pop(); models.pop() # best model is not saved
 for model,txt in zip(models,models_text):
-    for softmax_type in ["complex", "two_peak","simple","normal_target"]:
+    for softmax_type in ["normal_target"]:
     # for softmax_type in [args.softmax_type]:
 
         total_trials = 100

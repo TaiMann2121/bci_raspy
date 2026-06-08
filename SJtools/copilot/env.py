@@ -529,12 +529,12 @@ class SJ4DirectionsEnv(gym.Env):
   def step(self, action):
     # Execute one time step within the environment
 
-    if self.needReset: # internal reset created by trial_per_episode > 1
-      obs = self.reset()
+    if self.needReset:
+      obs, _ = self.reset()
       reward = 0
       done = False
       self.needReset = False
-      return obs, reward, done, {}
+      return obs, reward, done, False, {}
 
     if self.binaryAlpha:
       action[2] = 1 if action[2] > 0 else -1

@@ -1,5 +1,6 @@
 
 *.bak
+*.bak2
 fix_compat.py
 __pycache__/
 *.py[cod]   

@@ -279,17 +279,17 @@ class TensorboardLoggerCallback(BaseCallback):
 
 
             # record curriculum if any are used
-            if self.env.use_curriculum:
-                for attribute, rule in self.env.curriculum.items():
+            if self.env.env.use_curriculum:
+                for attribute, rule in self.env.env.curriculum.items():
                     self.logger.record(attribute, rule["current"])
 
 
             # log targetsize and set targetSize and change targetsize for eval as well. 
             # 05/22/23 update: maybe shouldn't change targetsize for eval. does not give good representation of eval. since eval is not even changing weights anyways
             
-            # targetSize = self.env.targetSize
+            # targetSize = self.env.env.targetSize
             # self.logger.record('target_size',targetSize)
-            # self.eval_env.targetSize = self.eval_env.env.taskGame.targetSize = targetSize
+            # self.eval_env.env.targetSize = self.eval_env.env.taskGame.targetSize = targetSize
             # self.eval_env.env.taskGame.changeTargetSize(targetSize)
 
             # log eval target up down left right

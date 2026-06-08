@@ -1,4 +1,6 @@
 
+*.bak
+fix_compat.py
 __pycache__/
 *.py[cod]   
 SJtools/copilot/models

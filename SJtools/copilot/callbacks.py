@@ -72,7 +72,7 @@ class LearningRateCallback(BaseCallback):
 
         # scheduler created
         optimizer = self.model.policy.optimizer
-        self.scheduler = ReduceLROnPlateau(optimizer, 'max', patience=self.lr_patience, verbose=True)
+        self.scheduler = ReduceLROnPlateau(optimizer, 'max', patience=self.lr_patience)
 
         # use substitue
         _STORED_LR = self.model.lr_schedule(1)
@@ -194,8 +194,8 @@ class TensorboardLoggerCallback(BaseCallback):
         self.n_eval_episodes = n_eval_episodes
 
         # hyper parameter constants
-        self.tickLength = self.eval_env.taskGame.tickLength
-        for target_name, (target_pos, target_size) in self.eval_env.taskGame.targetsInfo.items():
+        self.tickLength = self.eval_env.env.taskGame.tickLength
+        for target_name, (target_pos, target_size) in self.eval_env.env.taskGame.targetsInfo.items():
             if target_name == 'center': continue
             self.straight_distance = np.linalg.norm(target_pos)
             self.session_target_diameter = target_size[0]
@@ -214,13 +214,13 @@ class TensorboardLoggerCallback(BaseCallback):
         if self.update_counter == self.n_update_per_log:
                     
             # log eval success out of 4 trial that was ran
-            # print('eval_success',self.eval_env.trialResults[-4:])
-            evalTrialSuccesses = np.array(self.eval_env.trialResults[-self.n_eval_episodes:]) > 0 # success of last n trial
-            evalTrialTicks = np.array(self.eval_env.taskGame.PerformanceRecord.timeToHitByTrials[-self.n_eval_episodes:])
-            distancesTraveled = np.array(self.eval_env.taskGame.PerformanceRecord.distanceTravelledByTrials[-self.n_eval_episodes:])
-            extraDistancesTraveled = np.array(self.eval_env.taskGame.PerformanceRecord.extraDistanceTravelledByTrials[-self.n_eval_episodes:])
+            # print('eval_success',self.eval_env.env.trialResults[-4:])
+            evalTrialSuccesses = np.array(self.eval_env.env.trialResults[-self.n_eval_episodes:]) > 0 # success of last n trial
+            evalTrialTicks = np.array(self.eval_env.env.taskGame.PerformanceRecord.timeToHitByTrials[-self.n_eval_episodes:])
+            distancesTraveled = np.array(self.eval_env.env.taskGame.PerformanceRecord.distanceTravelledByTrials[-self.n_eval_episodes:])
+            extraDistancesTraveled = np.array(self.eval_env.env.taskGame.PerformanceRecord.extraDistanceTravelledByTrials[-self.n_eval_episodes:])
                 
-            if self.eval_env.taskGame.centerIn: # uses center in. only count center out
+            if self.eval_env.env.taskGame.centerIn: # uses center in. only count center out
                 evalTrialSuccesses = evalTrialSuccesses[::2]
                 evalTrialTicks = evalTrialTicks[::2]
                 distancesTraveled = distancesTraveled[::2]
@@ -239,7 +239,7 @@ class TensorboardLoggerCallback(BaseCallback):
             itr = iod / avgEvalTrialTime
             
 
-            # trialTime =(np.array(self.eval_env.trialResults[-self.n_eval_episodes:]) > 0).sum() / self.n_eval_episodes # success in percentage
+            # trialTime =(np.array(self.eval_env.env.trialResults[-self.n_eval_episodes:]) > 0).sum() / self.n_eval_episodes # success in percentage
 
             self.logger.record('eval/n_success', evalEndSuccess)
             self.logger.record('eval/success_percentage', evalSuccessPercentage)
@@ -260,21 +260,21 @@ class TensorboardLoggerCallback(BaseCallback):
             print('eval/fitt_ITR', itr)
             
 
-            print('eval_env',len(self.eval_env.trialResults))
-            print('env',len(self.env.trialResults))
+            print('eval_env',len(self.eval_env.env.trialResults))
+            print('env',len(self.env.env.trialResults))
 
             # log success of out of total number of trials that was ran within this tiem frame
-            totalTrials = np.clip((len(self.env.trialResults)-self.previousSuccessIndex),1,np.inf)
-            successTrials = np.sum(np.array(self.env.trialResults[self.previousSuccessIndex:]) > 0)
+            totalTrials = np.clip((len(self.env.env.trialResults)-self.previousSuccessIndex),1,np.inf)
+            successTrials = np.sum(np.array(self.env.env.trialResults[self.previousSuccessIndex:]) > 0)
             trialEndSuccess = successTrials / totalTrials
             # print(successTrials,totalTrials)
-            # print('success',self.env.trialResults[self.previousSuccessIndex:],trialEndSuccess)
-            # print('trial',self.env.trialResults)
+            # print('success',self.env.env.trialResults[self.previousSuccessIndex:],trialEndSuccess)
+            # print('trial',self.env.env.trialResults)
             self.logger.record('success', trialEndSuccess)
-            self.previousSuccessIndex = len(self.env.trialResults)
+            self.previousSuccessIndex = len(self.env.env.trialResults)
 
             # log last 10 success
-            tenSuccess = (np.array(self.env.trialResults[-10:]) > 0).sum() # success of last 10 trial
+            tenSuccess = (np.array(self.env.env.trialResults[-10:]) > 0).sum() # success of last 10 trial
             self.logger.record('last_ten_success', tenSuccess)
 
 
@@ -289,8 +289,8 @@ class TensorboardLoggerCallback(BaseCallback):
             
             # targetSize = self.env.targetSize
             # self.logger.record('target_size',targetSize)
-            # self.eval_env.targetSize = self.eval_env.taskGame.targetSize = targetSize
-            # self.eval_env.taskGame.changeTargetSize(targetSize)
+            # self.eval_env.targetSize = self.eval_env.env.taskGame.targetSize = targetSize
+            # self.eval_env.env.taskGame.changeTargetSize(targetSize)
 
             # log eval target up down left right
 

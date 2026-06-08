@@ -1,6 +1,6 @@
 import re
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 import numpy as np
 from modules.kf_4_directions_constructor import SJ_4_directions
 import math
@@ -568,9 +568,9 @@ class SJ4DirectionsEnv(gym.Env):
     # save softmax for next iteration
     self.softmax = softmax
     
-    return obs, reward, done, {"target_pos":self.result[1],"task_id":self.result[3],"softmax":softmax,"cursor_pos":self.result[0],"result":self.result}
+    return obs, reward, done, False, {"target_pos":self.result[1],"task_id":self.result[3],"softmax":softmax,"cursor_pos":self.result[0],"result":self.result}
 
-  def reset(self):
+  def reset(self, seed=None, options=None):
     
     skipped = False
     while True:
@@ -584,7 +584,7 @@ class SJ4DirectionsEnv(gym.Env):
         self.pastObs = obs = self.taskGame.get_env_obs(softmax, action="reset")
         self.softmax = softmax
         
-        return obs
+        return obs, {}
       
       else: 
         # Reset the state of the environment to an initial state

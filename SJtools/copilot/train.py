@@ -235,9 +235,9 @@ yamlcontent = {
             "extra_targets_yaml":args.extra_targets_yaml,
         },
     }
-yamlcontent.update(env.copilotYamlParam)
+yamlcontent.update(env.env.copilotYamlParam)
 myFiles.saveYaml(yamlcontent)
-myFiles.saveRewardYaml(env.rewardClass.fullYamlPath)
+myFiles.saveRewardYaml(env.env.rewardClass.fullYamlPath)
 if wandbUsed:
     wandb.save(myFiles.modelYamlPath)
 
@@ -272,16 +272,16 @@ for model,txt in zip(models,models_text):
         total_trials = 100
         trial_i = 0
         env = SJ4DirectionsEnv(isEval=True,wandbUsed=wandbUsed,render=args.renderEval,showSoftmax=args.showSoftmax,showVelocity=args.showVelocity,showHeatmap=args.showHeatmap,softmax_type=softmax_type,reward_type=args.reward_type,setAlpha=args.alpha,CSvalue=args.CS,stillCS=args.stillCS,target_predictor_input=args.target_predictor_input,useTargetPredictor=args.target_predictor,cursor_target_obs=args.cursor_target_obs,extra_targets=args.extra_targets,extra_targets_yaml=args.extra_targets_yaml,obs=args.obs,action=args.action,historyDim=args.history,historyReset=args.historyReset,maskSoftmax=args.maskSoftmax,binaryAlpha=args.binaryAlpha,obs_heatmap=args.obs_heatmap,obs_heatmap_option=args.obs_heatmap_option,center_out_back=args.center_out_back,velReplaceSoftmax=args.velReplaceSoftmax,noSoftmax=args.noSoftmax,tools=args.tools,trial_per_episode=args.trial_per_episode,hideMass=not args.showMass,action_param=args.action_param)
-        obs = env.reset()
+        obs, _ = env.reset()
         episode_start = True
         _states = None
 
         while trial_i < total_trials:
             action, _states = model.predict(obs, state=_states, deterministic=True, episode_start=episode_start)
             episode_start = False
-            obs, reward, done, info = env.step(action)
+            obs, reward, done, truncated, info = env.step(action)
             if done: 
-                obs = env.reset()
+                obs, _ = env.reset()
                 episode_start = True
                 
                 # skip still state

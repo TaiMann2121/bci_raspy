@@ -14,6 +14,11 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 
+from SJtools.copilot.copilotUtils.data_driven_surrogate import DataDrivenSurrogate
+_LAB_SURROGATE_CSV = None
+def init_lab_surrogate(csv_path):
+    global _LAB_SURROGATE_CSV
+    _LAB_SURROGATE_CSV = csv_path
 
 """ ============== PREARE ENV FUNCTION =============="""
 
@@ -361,6 +366,36 @@ class SJ4DirectionsEnv(gym.Env):
       self.taskGame.useTargetYamlFile(extra_targets_yaml)
     self.taskGame.addTargets(extra_targets)
 
+    if softmax_type == 'data_driven':
+      tl = 0.125
+      self.taskGame.tickLength = tl
+      self.taskGame.activeLength = 2.0
+      self.taskGame.episodeLength = (
+          self.taskGame.inactiveLength +
+          self.taskGame.delayedLength + 2.0
+      )
+      self.taskGame.activeTickLength = 2.0 / tl
+      self.taskGame.inactiveTickLength = self.taskGame.inactiveLength / tl
+      self.taskGame.delayedTickLength = self.taskGame.delayedLength / tl
+      self.taskGame.episodeTickLength = self.taskGame.episodeLength / tl
+      self.taskGame.graceTickLength = self.taskGame.graceTimeThres / tl
+      self.taskGame.calibrationTickLength = self.taskGame.calibrationLength / tl
+      self.taskGame.KfSyncDelayTickLength = (
+          self.taskGame.inactiveTickLength +
+          self.taskGame.delayedTickLength +
+          self.taskGame.enableKfAdaptDelay / tl
+      )
+      self.taskGame.AssistClass.yamlSettingChanged(
+          assistMode=self.taskGame.assistMode,
+          assistValue=self.taskGame.assistValue,
+          cursorSpeed=self.taskGame.cursorVel[0],
+          tickLength=tl
+      )
+      # Persist through YAML reloads on every trial reset
+      self.copilotYamlParam['dt'] = int(tl * 1e6)          # 125000 microseconds
+      self.copilotYamlParam['activeLength'] = 2.0           # ← ADD THIS
+      self.copilotYamlParam['inactiveLength'] = 0.0         # ← ADD THIS (center_out_back sets to 0)
+      self.taskGame.cursorVel = np.array([0.09375, 0.09375])
     # no need to train on still
     if 'still' in self.taskGame.desiredTargetList:  self.taskGame.desiredTargetList.remove('still')
 
@@ -393,6 +428,10 @@ class SJ4DirectionsEnv(gym.Env):
     if holdtime is not None: self.taskGame.holdTimeThres = self.taskGame.dwellTimeThres = holdtime
     self.decodedVel = self.taskGame.decodedVel
     self.softmax_type = softmax_type
+    if self.softmax_type == 'data_driven' and _LAB_SURROGATE_CSV is not None:
+        self._surrogate = DataDrivenSurrogate(_LAB_SURROGATE_CSV)
+    else:
+        self._surrogate = None
     self.reward_type = reward_type
     self.isEval = isEval # is the env eval eval?
     self.wandbUsed = wandbUsed # wandb is used
@@ -492,20 +531,45 @@ class SJ4DirectionsEnv(gym.Env):
 
 
   # default generate softmax
-  def getSoftmax(self,env,arg): 
+  def getSoftmax(self, env, arg):
     if self.softmax_type == 'complex':
-      return complexSoftmax(env,arg,self.CSvalue,self.stillCS)
+        return complexSoftmax(env, arg, self.CSvalue, self.stillCS)
     elif self.softmax_type == 'normal_target':
-      return normalTargetSoftmax(env,arg)
+        return normalTargetSoftmax(env, arg)
     elif self.softmax_type == 'two_peak':
-      return twoPeakSoftmax(env,arg,self.CSvalue,self.stillCS)
+        return twoPeakSoftmax(env, arg, self.CSvalue, self.stillCS)
     elif self.softmax_type == 'half_peak':
-      return halfPeakSoftmax(env,arg)
+        return halfPeakSoftmax(env, arg)
     elif self.softmax_type == 'simple':
-      return simpleSoftmax(env,arg)
-    else: 
-      print("getSoftmax error")
-      exit(1)
+        return simpleSoftmax(env, arg)
+    elif self.softmax_type == 'data_driven':
+      [cursorPos, targetPos, targetSize, state_taskidx, game_state, detail] = arg
+      if self._surrogate is None:
+          return normalTargetSoftmax(env, arg)
+      vel = self._surrogate.get_velocity()
+      
+      # Use real direction but normalTargetSoftmax-compatible magnitude
+      speed = np.sqrt(vel[0]**2 + vel[1]**2)
+      if speed > 1e-6:
+          # Get direction from real data
+          direction = vel / speed
+          # Use magnitude from normalTargetSoftmax range (mean 0.5, some noise)
+          magnitude = np.random.normal(0.5, 0.1)
+          magnitude = max(0.1, magnitude)
+          vel = direction * magnitude
+      else:
+          # Zero velocity — keep as zero (cursor not moving, realistic)
+          vel = np.zeros(2)
+      
+      softmax = np.zeros(N_STATE)
+      softmax[1] = max(float(vel[0]), 0.0)
+      softmax[0] = max(float(-vel[0]), 0.0)
+      softmax[2] = max(float(vel[1]), 0.0)
+      softmax[3] = max(float(-vel[1]), 0.0)
+      return softmax
+    else:
+        print("getSoftmax error")
+        exit(1)
 
 
   # default generate done
@@ -579,6 +643,28 @@ class SJ4DirectionsEnv(gym.Env):
         # store this for reward shaping
         self.rewardClass.reset()
         
+        if self._surrogate is not None and self.softmax_type == 'data_driven':
+          target_pos = self.result[1]  # [x, y] normalised
+          _pos2label = {
+              (-0.707,  0.707): 0,  # nw
+              ( 0.000,  1.000): 1,  # n
+              ( 0.707,  0.707): 2,  # ne
+              ( 1.000,  0.000): 3,  # e
+              ( 0.707, -0.707): 4,  # se
+              ( 0.000, -1.000): 5,  # s
+              (-0.707, -0.707): 6,  # sw
+              (-1.000,  0.000): 7,  # w
+          }
+          # find closest matching label
+          import numpy as np
+          lbl = None
+          best_dist = float('inf')
+          for pos, l in _pos2label.items():
+              d = np.linalg.norm(target_pos - np.array(pos))
+              if d < best_dist:
+                  best_dist, lbl = d, l
+          if best_dist < 0.1:  # only reset if we actually matched a target
+              self._surrogate.reset(lbl)
         # get softmax and obs
         softmax = self.softmax
         self.pastObs = obs = self.taskGame.get_env_obs(softmax, action="reset")

@@ -201,7 +201,7 @@ class TensorboardLoggerCallback(BaseCallback):
             self.session_target_diameter = target_size[0]
             break
         # fixed for apple to apple evaluation purpose
-        self.tickLength = 0.05 # 50ms
+        self.tickLength = 0.125 # 125ms
         self.straight_distance = 0.7 # assume that the cursor starts from the center. This is not always the case however
         self.session_target_diameter = 0.2
 

@@ -396,7 +396,6 @@ class SJ4DirectionsEnv(gym.Env):
       self.copilotYamlParam['activeLength'] = 2.0           # ← ADD THIS
       self.copilotYamlParam['inactiveLength'] = 0.0         # ← ADD THIS (center_out_back sets to 0)
       self.taskGame.cursorVel = np.array([0.09375, 0.09375])
-    # no need to train on still
     if 'still' in self.taskGame.desiredTargetList:  self.taskGame.desiredTargetList.remove('still')
 
     if center_out_back:
